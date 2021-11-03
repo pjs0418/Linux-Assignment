@@ -1,0 +1,1 @@
+cmd_/home/junsu/Linux-Assignment/06/pxt4/pxt4.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000  --build-id  -T ./scripts/module-common.lds -o /home/junsu/Linux-Assignment/06/pxt4/pxt4.ko /home/junsu/Linux-Assignment/06/pxt4/pxt4.o /home/junsu/Linux-Assignment/06/pxt4/pxt4.mod.o;  true
