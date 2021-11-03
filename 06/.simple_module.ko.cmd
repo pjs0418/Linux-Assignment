@@ -1,0 +1,1 @@
+cmd_/home/junsu/Linux-Assignment/06/simple_module.ko := ld -r -m elf_x86_64  -z max-page-size=0x200000  --build-id  -T ./scripts/module-common.lds -o /home/junsu/Linux-Assignment/06/simple_module.ko /home/junsu/Linux-Assignment/06/simple_module.o /home/junsu/Linux-Assignment/06/simple_module.mod.o;  true
