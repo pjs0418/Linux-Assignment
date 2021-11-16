@@ -3,12 +3,16 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/slab.h>
+#include <linux/rbtree.h>
 
+#define FALSE 0
+#define TRUE 1
 #define BILLION 1000000000
 
 int size[3] = {1000, 10000, 100000};
 
 void struct_example(void);
+void rb_example(void);
 unsigned long long calclock3(struct timespec *spclock, unsigned long long *total_time, unsigned long long *total_count);
 
 struct my_node {
@@ -16,9 +20,15 @@ struct my_node {
 	int data;
 };
 
+struct my_type {
+	struct rb_node node;
+	int key;
+	int value;
+};
+
 int __init simple_module_init(void)
 {
-	struct_example();
+	rb_example();
 	printk("Hello Module!\n");
 	return 0;
 }
@@ -119,3 +129,107 @@ unsigned long long calclock3(struct timespec *spclock, unsigned long long *total
 	
 	return timedelay;
 }
+
+int rb_insert(struct rb_root *root, struct my_type *data)
+{
+	struct rb_node **new = &(root->rb_node), *parent = NULL;
+
+	while(*new) {
+		struct my_type *this = container_of(*new, struct my_type, node);
+		parent = *new;
+		if(this->key > data->key)
+			new = &((*new)->rb_left);
+		else if(this->key < data->key)
+			new = &((*new)->rb_right);
+		else
+			return 1;
+	}
+
+	rb_link_node(&data->node, parent, new);
+	rb_insert_color(&data->node, root);
+
+	return 0;
+}
+
+struct my_type *rb_search(struct rb_root *root, int key)
+{
+	struct rb_node *node = root->rb_node;
+
+	while(node) {
+		struct my_type *data = container_of(node, struct my_type, node);
+
+		if(data->key > key)
+			node = node->rb_left;
+		else if(data->key < key)
+			node = node->rb_right;
+		else
+			return data;
+	}
+
+	return NULL;
+}
+
+int rb_delete(struct rb_root *mytree, int key)
+{
+	struct my_type *data = rb_search(mytree, key);
+
+	if(data) {
+		rb_erase(&data->node, mytree);
+		kfree(data);
+		return 0;
+	}
+	return 1;
+}
+
+void rb_example(void)
+{
+	struct rb_root my_tree = RB_ROOT;
+	int i, j, search_data;
+	struct timespec spclock[2];
+	unsigned long long total_time, total_count;
+
+	total_time = 0;
+	total_count = 0;
+
+	for(i = 0;i < 3;i++) {
+		printk("size = %d\n", size[i]);
+
+		for(j = 0;j < size[i];j++) {	
+			struct my_type *new = kmalloc(sizeof(struct my_type), GFP_KERNEL);	
+			new->value = j*10;
+			new->key = j;
+
+			ktime_get_ts(&spclock[0]);
+			rb_insert(&my_tree, new);
+			ktime_get_ts(&spclock[1]);
+			calclock3(spclock, &total_time, &total_count);
+		}
+
+		printk("insert_total_time: %llu, count: %llu\n", total_time, total_count);
+
+		total_time = 0;
+		total_count = 0;
+
+		for(search_data = 0;search_data < size[i];search_data++) {
+			ktime_get_ts(&spclock[0]);
+			rb_search(&my_tree, search_data);
+			ktime_get_ts(&spclock[1]);
+			calclock3(spclock, &total_time, &total_count);
+		}
+
+		printk("search_total_time: %llu, count: %llu\n", total_time, total_count);
+
+		total_time = 0;
+		total_count = 0;
+
+		for(j = 0;j < size[i];j++) {
+			ktime_get_ts(&spclock[0]);
+			rb_delete(&my_tree, j);
+			ktime_get_ts(&spclock[1]);
+			calclock3(spclock, &total_time, &total_count);
+		}
+
+		printk("delete_total_time: %llu, count: %llu\n", total_time, total_count);
+	}
+}
+
